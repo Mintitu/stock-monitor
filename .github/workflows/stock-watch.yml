@@ -22,3 +22,7 @@ jobs:
           path: output/
           if-no-files-found: error
           retention-days: 30
+      - name: Run Python script
+        env:
+         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+         CHAT_ID: ${{ secrets.CHAT_ID }}

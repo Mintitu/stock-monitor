@@ -18,6 +18,55 @@ def pct(old, new):
 def fmt(v, n=2):
     return 'n/a' if v is None or pd.isna(v) else f'{v:.{n}f}'
 
+def send_telegram_document(file_path, caption):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+
+    if not token or not chat_id:
+        raise RuntimeError(
+            "Lipsesc TELEGRAM_BOT_TOKEN sau TELEGRAM_CHAT_ID. "
+            "Verifica GitHub Secrets si blocul env din workflow."
+        )
+
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+
+    try:
+        with open(file_path, "rb") as document:
+            response = requests.post(
+                url,
+                data={
+                    "chat_id": chat_id,
+                    "caption": caption,
+                },
+                files={"document": document},
+                timeout=(15, 90),
+            )
+    except requests.RequestException:
+        # Nu afisam exceptia originala: URL-ul contine tokenul.
+        raise RuntimeError(
+            "Conexiunea cu Telegram a esuat sau a expirat."
+        ) from None
+
+    try:
+        result = response.json()
+    except ValueError:
+        raise RuntimeError(
+            f"Telegram a returnat un raspuns invalid "
+            f"(HTTP {response.status_code})."
+        ) from None
+
+    if not response.ok or not result.get("ok"):
+        description = str(
+            result.get("description", "Eroare necunoscuta")
+        ).replace(token, "[REDACTED]")
+
+        raise RuntimeError(
+            f"Trimiterea Telegram a esuat "
+            f"(HTTP {response.status_code}): {description}"
+        )
+
+    print(f"Trimis pe Telegram: {file_path.name}")
+
 def main():
     fdf = pd.read_csv(FUND, comment='#')
     for c in ['nii_per_share','nav_per_share','dividend_per_share_annualized','shares_outstanding_m']:
@@ -63,8 +112,29 @@ def main():
         lines.append(f"|{t}|{fmt(price)}|{fmt(divs)}|{fmt(yieldp,1)}|{period}|{fmt(nii,3)}|{fmt(nav)}|{fmt(annual)}|{fmt(shares)}|{fmt(nc,1) if nc is not None else 'n/a'}%|{fmt(vc,1) if vc is not None else 'n/a'}%|{fmt(dc,1) if dc is not None else 'n/a'}%|{fmt(sc,1) if sc is not None else 'n/a'}%|{'; '.join(flags)}|")
         snap.append({'ticker':t,'price_usd':price,'dividends_ttm_per_share_usd':divs,'yield_ttm_pct':yieldp,'latest_period':period,'nii_per_share':nii,'nav_bv_per_share':nav,'annualized_dividend_per_share':annual,'shares_outstanding_m':shares,'nii_change_pct':nc,'nav_change_pct':vc,'dividend_change_pct':dc,'shares_change_pct':sc,'flags':' | '.join(flags)})
     lines += ['', '*Yield is trailing cash dividends over the last 365 days divided by the latest price; it is not a guaranteed forward yield.', '', '## Important limitations', '- Yahoo Finance does not provide standardized NII/share and NAV/share history for all these companies.', '- For BDCs, enter quarterly NII/share. For mortgage REITs (ARR, DX, AGNC), enter a consistent company-reported earnings measure and note that it is not directly comparable with BDC NII.', '- The script compares the latest two rows only. Add rows from official reports to build history and calculate true multi-year CAGR.', '- Flags are screening alerts, not buy/sell recommendations.']
-    (OUT/'report.md').write_text('\n'.join(lines),encoding='utf-8')
-    pd.DataFrame(snap).to_csv(OUT/'snapshot.csv',index=False)
-    print('\n'.join(lines))
+        report_path = OUT / "report.md"
+    snapshot_path = OUT / "snapshot.csv"
 
-if __name__=='__main__': main()
+    report_path.write_text(
+        "\n".join(lines),
+        encoding="utf-8",
+    )
+
+    pd.DataFrame(snap).to_csv(
+        snapshot_path,
+        index=False,
+    )
+
+    print("\n".join(lines))
+
+    send_telegram_document(
+        report_path,
+        "Stock Watch - raport complet",
+    )
+
+    send_telegram_document(
+        snapshot_path,
+        "Stock Watch - date pentru Excel",
+    )
+if __name__ == "__main__":
+    main()

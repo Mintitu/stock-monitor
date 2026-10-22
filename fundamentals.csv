@@ -1,0 +1,2 @@
+ticker,period,nii_per_share,nav_per_share,dividend_per_share_annualized,shares_outstanding_m
+# Add one row per reported quarter using official company reports. Do not enter guessed figures.

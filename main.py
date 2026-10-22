@@ -1,3 +1,5 @@
+import os
+import requests
 import pandas as pd
 import yfinance as yf
 from pathlib import Path

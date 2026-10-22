@@ -111,8 +111,24 @@ def main():
         if err: flags.append('Market data error: '+err)
         lines.append(f"|{t}|{fmt(price)}|{fmt(divs)}|{fmt(yieldp,1)}|{period}|{fmt(nii,3)}|{fmt(nav)}|{fmt(annual)}|{fmt(shares)}|{fmt(nc,1) if nc is not None else 'n/a'}%|{fmt(vc,1) if vc is not None else 'n/a'}%|{fmt(dc,1) if dc is not None else 'n/a'}%|{fmt(sc,1) if sc is not None else 'n/a'}%|{'; '.join(flags)}|")
         snap.append({'ticker':t,'price_usd':price,'dividends_ttm_per_share_usd':divs,'yield_ttm_pct':yieldp,'latest_period':period,'nii_per_share':nii,'nav_bv_per_share':nav,'annualized_dividend_per_share':annual,'shares_outstanding_m':shares,'nii_change_pct':nc,'nav_change_pct':vc,'dividend_change_pct':dc,'shares_change_pct':sc,'flags':' | '.join(flags)})
-    lines += ['', '*Yield is trailing cash dividends over the last 365 days divided by the latest price; it is not a guaranteed forward yield.', '', '## Important limitations', '- Yahoo Finance does not provide standardized NII/share and NAV/share history for all these companies.', '- For BDCs, enter quarterly NII/share. For mortgage REITs (ARR, DX, AGNC), enter a consistent company-reported earnings measure and note that it is not directly comparable with BDC NII.', '- The script compares the latest two rows only. Add rows from official reports to build history and calculate true multi-year CAGR.', '- Flags are screening alerts, not buy/sell recommendations.']
-        report_path = OUT / "report.md"
+    lines += [
+        "",
+        "*Yield is trailing cash dividends over the last 365 days "
+        "divided by the latest price; it is not a guaranteed forward yield.",
+        "",
+        "## Important limitations",
+        "- Yahoo Finance does not provide standardized NII/share "
+        "and NAV/share history for all these companies.",
+        "- For BDCs, enter quarterly NII/share. For mortgage REITs "
+        "(ARR, DX, AGNC), enter a consistent company-reported earnings "
+        "measure and note that it is not directly comparable with BDC NII.",
+        "- The script compares the latest two rows only. Add rows "
+        "from official reports to build history and calculate true "
+        "multi-year CAGR.",
+        "- Flags are screening alerts, not buy/sell recommendations.",
+    ]
+
+    report_path = OUT / "report.md"
     snapshot_path = OUT / "snapshot.csv"
 
     report_path.write_text(
@@ -136,5 +152,7 @@ def main():
         snapshot_path,
         "Stock Watch - date pentru Excel",
     )
+
+
 if __name__ == "__main__":
     main()

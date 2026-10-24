@@ -1,0 +1,40 @@
+name: Stock Main
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 13 * * 1' # Mondays 13:30 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  stock-watch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Python script
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-watch-report
+          path: output/
+          if-no-files-found: error
+          retention-days: 30

@@ -217,7 +217,7 @@ def main():
         summary.append(f'{i}. {r.ticker} (${r.price_usd:.2f}) — Scor: {r.score:.1f} ({r.strategy})')
     
     tg('sendMessage', {'text': '\n'.join(summary)[:4000]})
-    send_doc(report, 'Raport complet Alpha')
+    send_doc(report, 'Raport complet Alpha md')
     send_doc(top_path, 'Top 10 Selecții de Cursă Lungă')
     return 0
 

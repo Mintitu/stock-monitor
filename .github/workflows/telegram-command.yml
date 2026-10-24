@@ -1,0 +1,35 @@
+name: Telegram /raport command listener
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: telegram-command-listener
+  cancel-in-progress: false
+jobs:
+  poll-telegram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Telegram update offset
+        uses: actions/cache@v4
+        with:
+          path: .telegram-offset
+          key: telegram-offset-${{ github.run_id }}
+          restore-keys: |
+            telegram-offset-
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install requests
+        run: pip install requests
+      - name: Poll Telegram and dispatch scanner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: python telegram_poll.py

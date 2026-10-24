@@ -1,0 +1,40 @@
+name: Stock Watch Scanner
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 13 * * 1"
+permissions:
+  contents: read
+concurrency:
+  group: stock-watch-scan
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run full-market scanner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MIN_PRICE_USD: "5"
+          MIN_AVG_DOLLAR_VOLUME: "5000000"
+          MIN_HISTORY_ROWS: "600"
+          SCAN_BATCH_SIZE: "50"
+          SCAN_UNIVERSE_LIMIT: "0"
+        run: python stock-all.py
+      - name: Upload scanner outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-watch-report
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30

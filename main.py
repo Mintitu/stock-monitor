@@ -2,6 +2,9 @@ import os
 import requests
 import pandas as pd
 import yfinance as yf
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -18,7 +21,7 @@ def pct(old, new):
 def fmt(v, n=2):
     return 'n/a' if v is None or pd.isna(v) else f'{v:.{n}f}'
 
-def send_telegram_document(file_path, caption):
+def send_telegram_file(file_path, caption, method="sendDocument", field="document"):
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
@@ -28,44 +31,108 @@ def send_telegram_document(file_path, caption):
             "Verifica GitHub Secrets si blocul env din workflow."
         )
 
-    url = f"https://api.telegram.org/bot{token}/sendDocument"
+    url = f"https://api.telegram.org/bot{token}/{method}"
 
     try:
-        with open(file_path, "rb") as document:
+        with open(file_path, "rb") as fh:
             response = requests.post(
                 url,
-                data={
-                    "chat_id": chat_id,
-                    "caption": caption,
-                },
-                files={"document": document},
+                data={"chat_id": chat_id, "caption": caption},
+                files={field: fh},
                 timeout=(15, 90),
             )
     except requests.RequestException:
         # Nu afisam exceptia originala: URL-ul contine tokenul.
-        raise RuntimeError(
-            "Conexiunea cu Telegram a esuat sau a expirat."
-        ) from None
+        raise RuntimeError("Conexiunea cu Telegram a esuat sau a expirat.") from None
 
     try:
         result = response.json()
     except ValueError:
         raise RuntimeError(
-            f"Telegram a returnat un raspuns invalid "
-            f"(HTTP {response.status_code})."
+            f"Telegram a returnat un raspuns invalid (HTTP {response.status_code})."
         ) from None
 
     if not response.ok or not result.get("ok"):
-        description = str(
-            result.get("description", "Eroare necunoscuta")
-        ).replace(token, "[REDACTED]")
-
+        description = str(result.get("description", "Eroare necunoscuta")).replace(token, "[REDACTED]")
         raise RuntimeError(
-            f"Trimiterea Telegram a esuat "
-            f"(HTTP {response.status_code}): {description}"
+            f"Trimiterea Telegram a esuat (HTTP {response.status_code}): {description}"
         )
 
-    print(f"Trimis pe Telegram: {file_path.name}")
+    print(f"Trimis pe Telegram: {Path(file_path).name}")
+
+
+def make_dashboard(snap, path):
+    """Genereaza o imagine PNG: grafic cu randamentul + tabel colorat."""
+    df = pd.DataFrame(snap)
+    df = df.sort_values("yield_ttm_pct", ascending=False, na_position="last").reset_index(drop=True)
+    n = len(df)
+
+    bg, fg, grid = "#0f1720", "#e8edf2", "#2a3644"
+    fig = plt.figure(figsize=(12, 4.2 + 0.42 * n), facecolor=bg)
+    gs = fig.add_gridspec(2, 1, height_ratios=[n * 0.42 + 0.8, n * 0.42 + 1.2], hspace=0.25)
+
+    # --- grafic: randament TTM ---
+    ax = fig.add_subplot(gs[0])
+    ax.set_facecolor(bg)
+    ys = list(range(n))[::-1]
+    vals = df["yield_ttm_pct"].fillna(0).tolist()
+    colors = ["#e5534b" if v >= 15 else "#d9a441" if v >= 10 else "#3fb27f" for v in vals]
+    ax.barh(ys, vals, color=colors, height=0.62)
+    ax.set_yticks(ys)
+    ax.set_yticklabels(df["ticker"], color=fg, fontsize=11, fontweight="bold")
+    for y, v in zip(ys, vals):
+        ax.text(v + 0.3, y, f"{v:.1f}%", va="center", color=fg, fontsize=10)
+    ax.set_xlim(0, max(vals + [1]) * 1.15)
+    ax.tick_params(axis="x", colors=fg)
+    ax.xaxis.grid(True, color=grid, linewidth=0.6)
+    ax.set_axisbelow(True)
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_title("Randament dividende TTM (%)  |  verde <10%   galben 10-15%   rosu >=15%",
+                 color=fg, fontsize=12, loc="left", pad=10)
+
+    # --- tabel ---
+    ax2 = fig.add_subplot(gs[1])
+    ax2.axis("off")
+    ax2.set_facecolor(bg)
+    header = ["Ticker", "Pret $", "Div TTM $", "Randament %", "Perioada", "Semnale"]
+    rows = []
+    for _, r in df.iterrows():
+        flags = str(r["flags"]).replace("Add quarterly data to fundamentals.csv", "lipsesc date fundamentale")
+        rows.append([
+            r["ticker"],
+            fmt(r["price_usd"]),
+            fmt(r["dividends_ttm_per_share_usd"]),
+            fmt(r["yield_ttm_pct"], 1),
+            str(r["latest_period"]),
+            flags[:60],
+        ])
+    tbl = ax2.table(cellText=rows, colLabels=header, loc="upper center", cellLoc="center",
+                    colWidths=[0.09, 0.10, 0.11, 0.13, 0.12, 0.45])
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(10)
+    tbl.scale(1, 1.55)
+    for (i, j), cell in tbl.get_celld().items():
+        cell.set_edgecolor(grid)
+        if i == 0:
+            cell.set_facecolor("#1d2a38")
+            cell.get_text().set_color(fg)
+            cell.get_text().set_fontweight("bold")
+        else:
+            cell.set_facecolor(bg if i % 2 else "#141e29")
+            cell.get_text().set_color(fg)
+            if j == 5:
+                cell.get_text().set_ha("left")
+                cell._loc = "left"
+
+    stamp = f"{datetime.now(timezone.utc):%Y-%m-%d %H:%M UTC}"
+    fig.suptitle(f"Stock Watch  -  {stamp}", color=fg, fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.995)
+    fig.text(0.02, 0.005,
+             "Date Yahoo Finance, pot fi intarziate. Semnalele sunt alerte de screening, nu recomandari de investitii.",
+             color="#8b98a5", fontsize=8)
+    fig.savefig(path, dpi=130, facecolor=bg, bbox_inches="tight")
+    plt.close(fig)
+
 
 def main():
     fdf = pd.read_csv(FUND, comment='#')
@@ -143,15 +210,17 @@ def main():
 
     print("\n".join(lines))
 
-    send_telegram_document(
-        report_path,
-        "Stock Watch - raport complet",
-    )
+    image_path = OUT / "dashboard.png"
+    make_dashboard(snap, image_path)
 
-    send_telegram_document(
-        snapshot_path,
-        "Stock Watch - date pentru Excel",
-    )
+    # Imaginea apare direct in conversatie, fara sa o deschizi
+    send_telegram_file(image_path, "Stock Watch - raport grafic",
+                       method="sendPhoto", field="photo")
+
+    # Fisierele .md / .csv raman salvate in output/; le trimit doar daca vrei
+    if os.environ.get("SEND_FILES", "").strip() == "1":
+        send_telegram_file(report_path, "Stock Watch - raport complet")
+        send_telegram_file(snapshot_path, "Stock Watch - date pentru Excel")
 
 
 if __name__ == "__main__":

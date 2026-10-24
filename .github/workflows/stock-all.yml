@@ -1,4 +1,4 @@
-name: Stock Watch Scanner
+name: Stock All — Warren Buffett Beat the Market
 on:
   workflow_dispatch:
   schedule:

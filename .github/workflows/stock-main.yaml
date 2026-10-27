@@ -1,0 +1,55 @@
+name: Stock Main Hybrid
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 13 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: stock-watch-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  stock-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/cache/restore@v4
+        with:
+          path: .data-cache
+          key: hybrid-v2-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            hybrid-v2-${{ github.ref_name }}-
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Check syntax
+        run: python -m py_compile stock-main.py
+      - name: Offline tests
+        run: python test_offline.py
+      - name: Generate report
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CACHE_TTL_HOURS: '6'
+          MAX_STALE_DAYS: '7'
+          SEND_FILES: '1'
+        run: python stock-main.py
+      - name: Save cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .data-cache
+          key: hybrid-v2-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-watch-hybrid-report
+          path: output/
+          if-no-files-found: warn
+          retention-days: 30

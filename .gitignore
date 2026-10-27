@@ -1,0 +1,4 @@
+.data-cache/
+output/
+__pycache__/
+.env

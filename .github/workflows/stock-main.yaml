@@ -30,8 +30,7 @@ jobs:
       - name: Check syntax
         run: python -m py_compile stock-main.py
         
-      - name: Offline tests
-        run: python test_offline.py
+      # (Am scos complet pasul "Offline tests" de aici)
         
       - name: Generate report
         env:

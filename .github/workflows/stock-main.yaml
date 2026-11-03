@@ -26,10 +26,13 @@ jobs:
             hybrid-v2-${{ github.ref_name }}-
       - name: Install dependencies
         run: pip install -r requirements.txt
+        
       - name: Check syntax
         run: python -m py_compile stock-main.py
+        
       - name: Offline tests
         run: python test_offline.py
+        
       - name: Generate report
         env:
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
@@ -39,12 +42,14 @@ jobs:
           MAX_STALE_DAYS: '7'
           SEND_FILES: '1'
         run: python stock-main.py
+        
       - name: Save cache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: .data-cache
           key: hybrid-v2-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4

@@ -249,7 +249,6 @@ def main():
         dv, ds, error, fetched = dividend_value(ticker, yahoo, today, cutoff, events, coverage)
         yield_val = (dv / price_val * 100) if (dv is not None and price_val) else None
 
-        # Generate trading signal based on yield and stability to secure profit / hold
         signal = "Hold"
         if yield_val is not None:
             if yield_val > 12.0:
@@ -261,22 +260,17 @@ def main():
 
         rows.append({
             "ticker": ticker,
-            "price_usd": f"{price_val:.2f}" if price_val is not None else "n/a",
-            "div_ttm": f"{dv:.2f}" if dv is not None else "n/a",
-            "yield_ttm_pct": f"{yield_val:.2f}%" if yield_val is not None else "n/a",
+            "price_usd": price_val,
+            "yield_ttm_pct": yield_val,
+            "div_ttm_str": f"{dv:.2f}" if dv is not None else "n/a",
+            "price_str": f"{price_val:.2f}" if price_val is not None else "n/a",
+            "yield_str": f"{yield_val:.2f}%" if yield_val is not None else "n/a",
             "signal": signal
         })
 
     df = pd.DataFrame(rows)
-    # Wealthfolio compatible format for snapshot.csv
-    wealthfolio_df = pd.DataFrame({
-        "Ticker": [r["ticker"] for r in rows],
-        "Price": [r["price_usd"] for r in rows],
-        "Currency": "USD"
-    })
-    wealthfolio_df.to_csv(OUT / "snapshot.csv", index=False)
+    df.to_csv(OUT / "snapshot.csv", index=False)
 
-    # HTML Report with sticky first column for mobile/desktop viewing
     html_content = f"""# Stock Main - Hybrid Report
 Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
 
@@ -318,14 +312,14 @@ th {{
   </tr>
 """
     for r in rows:
-        html_content += f"  <tr><td><b>{r['ticker']}</b></td><td>{r['price_usd']}</td><td>{r['div_ttm']}</td><td>{r['yield_ttm_pct']}</td><td>{r['signal']}</td></tr>\n"
+        html_content += f"  <tr><td><b>{r['ticker']}</b></td><td>{r['price_str']}</td><td>{r['div_ttm_str']}</td><td>{r['yield_str']}</td><td>{r['signal']}</td></tr>\n"
     html_content += "</table>\n</div>"
 
     (OUT / "report.md").write_text(html_content, encoding="utf-8")
 
     fig, ax = plt.subplots(figsize=(12, max(5, len(rows) * .4 + 2)))
     ax.axis("off")
-    cells = [[r["ticker"], r["price_usd"], r["div_ttm"], r["yield_ttm_pct"], r["signal"]] for r in rows]
+    cells = [[r["ticker"], r["price_str"], r["div_ttm_str"], r["yield_str"], r["signal"]] for r in rows]
     tab = ax.table(cellText=cells, colLabels=["Ticker", "Price USD", "Div TTM", "Yield TTM", "Signal"], loc="center", cellLoc="center")
     tab.auto_set_font_size(False)
     tab.set_fontsize(10)
@@ -339,6 +333,8 @@ th {{
         status += [send_file(OUT / n) for n in ("report.md", "snapshot.csv")]
     (OUT / "delivery-status.txt").write_text("\n".join(status))
     print("\n".join(status))
+    if not df.price_usd.notna().any():
+        raise RuntimeError("No usable prices.")
 
 
 if __name__ == "__main__":

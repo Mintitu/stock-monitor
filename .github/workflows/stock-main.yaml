@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: stock-watch-${{ github.ref }}
+  group: stock-main-hyb-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   stock-watch:

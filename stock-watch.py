@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / 'output'
 OUT.mkdir(exist_ok=True)
-TICKERS = ['ARR','DX','REFI','SCM','PFLT','AGNC','ARE','CAG','MAIN','ARCC','BXSL','TSLX','GBDC','GLAD','TRIN']
+TICKERS = ['ARR','DX','REFI','SCM','PFLT','AGNC','ARE','CAG','MAIN','ARCC','SPCX','KGS','PEP','QYLD','VICI','AVGO']
 FUND = ROOT / 'fundamentals.csv'
 PLACEHOLDER_FLAG = 'Add quarterly data to fundamentals.csv'
 

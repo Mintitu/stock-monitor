@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "output"
 CACHE = ROOT / ".data-cache"
-TICKERS = list(dict.fromkeys(x.strip().upper() for x in os.getenv("TICKERS", "ARR,DX,REFI,SCM,PFLT,AGNC,ARE,CAG,MAIN,ARCC,BXSL,TSLX,GBDC,GLAD,TRIN").split(",") if x.strip()))
+TICKERS = list(dict.fromkeys(x.strip().upper() for x in os.getenv("TICKERS", 'ARR','DX','REFI','SCM','PFLT','AGNC','ARE','CAG','MAIN','ARCC','SPCX','KGS','PEP','QYLD','VICI','AVGO').split(",") if x.strip()))
 SESSION = requests.Session()
 STATE = {"yahoo_failures": 0, "td_disabled": False, "td_last": 0.0, "yahoo_calls": 0, "td_calls": 0}
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)

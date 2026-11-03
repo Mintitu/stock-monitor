@@ -282,7 +282,7 @@ def main():
     df = pd.DataFrame(rows)
     df.to_csv(OUT / "snapshot.csv", index=False)
     cols = ["ticker", "price_usd", "price_date", "price_source", "dividends_ttm_per_share_usd", "dividend_source", "yield_ttm_pct", "latest_period", "flags"]
-    lines = ["# Stock Watch - hybrid sources", "", datetime.now(timezone.utc).isoformat(), "",
+    lines = ["# Stock Main -hybrid sources", "", datetime.now(timezone.utc).isoformat(), "",
         "Prices: daily Close, split-adjusted but NOT dividend-adjusted. Today's bar excluded, even after close.",
         "Each ticker's full price window comes from one provider; histories are not spliced across providers.",
         "Yahoo dividend events may be incomplete: the report labels provider data, not independently verified data.",
@@ -302,7 +302,7 @@ def main():
     tab.auto_set_font_size(False)
     tab.set_fontsize(9)
     tab.scale(1, 1.6)
-    ax.set_title("Stock Watch | hybrid sources\n*Yahoo dividend completeness not independently verified | n/a = unavailable\nSee report and CSV for dates and quality flags", fontsize=12)
+    ax.set_title("Stock Main | hybrid sources\n*Yahoo dividend completeness not independently verified | n/a = unavailable\nSee report and CSV for dates and quality flags", fontsize=12)
     fig.savefig(OUT / "dashboard.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
     status = [f"Yahoo history calls: {STATE['yahoo_calls']} (not necessarily HTTP requests)", f"Twelve Data requests: {STATE['td_calls']}", send_file(OUT / "dashboard.png", True)]
